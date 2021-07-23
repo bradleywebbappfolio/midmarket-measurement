@@ -1,0 +1,28 @@
+SELECT ut.VHOST, ut.ID as turn_ID, sr.ID as SR_ID, wo.ID as WO_ID, wo.STATUS_CODE,
+    CASE
+        WHEN wo.STATUS_CODE = 0 THEN 'NEW'
+        WHEN wo.STATUS_CODE = 1 THEN 'ESTIMATE_REQUESTED'
+        WHEN wo.STATUS_CODE = 2 THEN 'ESTIMATED'
+        WHEN wo.STATUS_CODE = 3 THEN 'SCHEDULED'
+        WHEN wo.STATUS_CODE = 4 THEN 'COMPLETED'
+        WHEN wo.STATUS_CODE = 5 THEN 'CANCELED'
+        WHEN wo.STATUS_CODE = 6 THEN 'WAITING'
+        WHEN wo.STATUS_CODE = 7 THEN 'COMPLETED_NO_BILL'
+        WHEN wo.STATUS_CODE = 8 THEN 'WORK_COMPLETED'
+        WHEN wo.STATUS_CODE = 9 THEN 'ASSIGNED'
+        WHEN wo.STATUS_CODE = 10 THEN 'NEW_BY_MCC'
+        WHEN wo.STATUS_CODE = 11 THEN 'ASSIGNED_BY_MCC'
+    END as wo_status,
+    CASE
+        WHEN wo.STATUS_CODE in (0, 1, 2, 3, 6, 9, 10, 11) THEN 'NOT_TERMINAL'
+        WHEN wo.STATUS_CODE not in (0, 1, 2, 3, 6, 9, 10, 11) and sr.ID is not null THEN 'TERMINAL'
+    END as terminal_status,
+    CASE
+        WHEN wo.UPDATED_AT < current_date() - interval '30 days' AND wo.STATUS_CODE in (0, 1, 2, 3, 6, 9, 10, 11) THEN 'STALE'
+        WHEN wo.UPDATED_AT > current_date() - interval '30 days' AND wo.STATUS_CODE in (0, 1, 2, 3, 6, 9, 10, 11) THEN 'FRESH'
+    END as work_order_freshness,
+    wo.CREATED_AT,
+    wo.UPDATED_AT
+FROM PROPERTY_MAINTENANCE_UNIT_TURNS ut
+LEFT OUTER JOIN PROPERTY_MAINTENANCE_SERVICE_REQUESTS sr on sr.VHOST = ut.VHOST and sr.UNIT_TURN_ID = ut.ID
+LEFT OUTER JOIN PROPERTY_MAINTENANCE_WORK_ORDERS wo on ut.VHOST = wo.VHOST and sr.ID = wo.SERVICE_REQUEST_ID
